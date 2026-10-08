@@ -11,7 +11,9 @@ const JWT_SECRET = 'techverse_super_secret_key_2026';
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Klasör zorunluluğunu kaldırdık, doğrudan ana dizindeki dosyaları sunuyoruz:
+app.use(express.static(__dirname));
 
 const db = new sqlite3.Database('./database.sqlite', (err) => {
     if (err) console.error('Veritabanı hatası:', err.message);
@@ -94,26 +96,6 @@ db.serialize(() => {
                     date: "8 Ekim 2026",
                     likes: 142,
                     views: 980
-                },
-                {
-                    title: "Kuantum İşlemcilerde Sıvı Helyum Soğutma Atılımı",
-                    category: "Donanım",
-                    summary: "Kuantum bilgisayarların stabil kalmasını sağlayan -273 derecelik yeni nesil mikro-soğutma blokları tanıtıldı.",
-                    content: "Donanım mimarlarının yıllardır çözmeye çalıştığı kubit kararsızlığı sorunu, odaklanmış oda-soğutmalı kriyo-çip entegrasyonu sayesinde %80 oranında azaltıldı.",
-                    image: "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
-                    date: "7 Ekim 2026",
-                    likes: 89,
-                    views: 650
-                },
-                {
-                    title: "WebAssembly ve WebGPU ile Web'de Konsol Kalitesinde Oyun",
-                    category: "Yazılım",
-                    summary: "Modern tarayıcılar artık ekran kartına doğrudan erişerek masaüstü yazılımları aratmayan performans veriyor.",
-                    content: "WebGPU standardının geniş kitlelerce kabul görmesiyle birlikte tarayıcı üzerinden Unreal Engine 5 kalitesinde 3D oyunlar ve çizim programları indirimsiz ve gecikmesiz çalışıyor.",
-                    image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800",
-                    date: "6 Ekim 2026",
-                    likes: 112,
-                    views: 820
                 }
             ];
 
@@ -122,6 +104,10 @@ db.serialize(() => {
             stmt.finalize();
         }
     });
+});
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -163,10 +149,10 @@ app.get('/api/admin/stats', (req, res) => {
             db.get("SELECT COUNT(*) as totalComments FROM comments", [], (err, commentRow) => {
                 db.get("SELECT SUM(views) as totalViews FROM news", [], (err, viewsRow) => {
                     res.json({
-                        totalNews: newsRow.totalNews || 0,
-                        totalUsers: userRow.totalUsers || 0,
-                        totalComments: commentRow.totalComments || 0,
-                        totalViews: viewsRow.totalViews || 0
+                        totalNews: newsRow ? newsRow.totalNews : 0,
+                        totalUsers: userRow ? userRow.totalUsers : 0,
+                        totalComments: commentRow ? commentRow.totalComments : 0,
+                        totalViews: viewsRow ? viewsRow.totalViews : 0
                     });
                 });
             });
@@ -278,5 +264,5 @@ app.post('/api/news', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 Pro CMS TechVerse Portal: http://localhost:${PORT}`);
+    console.log(`🚀 Sunucu aktif: http://localhost:${PORT}`);
 });
