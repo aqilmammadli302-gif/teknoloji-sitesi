@@ -1,83 +1,27 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = 'techverse_super_secret_key_2026';
+const DB_FILE = path.join(__dirname, 'data.json');
 
 app.use(cors());
 app.use(express.json());
-
-// Klasör zorunluluğunu kaldırdık, doğrudan ana dizindeki dosyaları sunuyoruz:
 app.use(express.static(__dirname));
 
-const db = new sqlite3.Database('./database.sqlite', (err) => {
-    if (err) console.error('Veritabanı hatası:', err.message);
-    else console.log('SQLite Veritabanı başarıyla bağlandı.');
-});
-
-db.serialize(() => {
-    db.run(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT DEFAULT 'user',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS news (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            category TEXT NOT NULL,
-            summary TEXT NOT NULL,
-            content TEXT NOT NULL,
-            image TEXT,
-            author TEXT DEFAULT 'TechVerse Editör',
-            date TEXT NOT NULL,
-            views INTEGER DEFAULT 0,
-            likes INTEGER DEFAULT 0
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS comments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            news_id INTEGER NOT NULL,
-            username TEXT NOT NULL,
-            comment TEXT NOT NULL,
-            date DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (news_id) REFERENCES news(id)
-        )
-    `);
-
-    db.run(`
-        CREATE TABLE IF NOT EXISTS bookmarks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL,
-            news_id INTEGER NOT NULL,
-            UNIQUE(username, news_id)
-        )
-    `);
-
-    db.get("SELECT * FROM users WHERE email = 'admin@techverse.com'", async (err, row) => {
-        if (!row) {
-            const hash = await bcrypt.hash('admin123', 10);
-            db.run("INSERT INTO users (username, email, password, role) VALUES ('Admin', 'admin@techverse.com', ?, 'admin')", [hash]);
-        }
-    });
-
-    db.get("SELECT COUNT(*) AS count FROM news", (err, row) => {
-        if (row && row.count === 0) {
-            const initialNews = [
+// Veritabanı Yardımcı Fonksiyonları (JSON Tabanlı Saf JS)
+function readData() {
+    if (!fs.existsSync(DB_FILE)) {
+        const initialData = {
+            users: [],
+            news: [
                 {
+                    id: 1,
                     title: "NVIDIA RTX 5090 Blackwell Mimarisi ve AI Performansı",
                     category: "Donanım",
                     summary: "Amiral gemisi yeni ekran kartı 32GB GDDR7 belleği ve DLSS 4 desteğiyle oyun ve yapay zeka sınırlarını yeniden çiziyor.",
@@ -88,6 +32,7 @@ db.serialize(() => {
                     views: 1240
                 },
                 {
+                    id: 2,
                     title: "GPT-5 ve Otonom Yapay Zeka Ajanları Çağı",
                     category: "Yapay Zeka",
                     summary: "Yeni nesil yapay zeka mimarileri sadece komut almıyor, kendi başına görev planlayıp karmaşık projeleri tamamlıyor.",
@@ -97,15 +42,29 @@ db.serialize(() => {
                     likes: 142,
                     views: 980
                 }
-            ];
+            ],
+            comments: [],
+            bookmarks: []
+        };
+        const adminHash = bcrypt.hashSync('admin123', 10);
+        initialData.users.push({
+            id: 1,
+            username: 'Admin',
+            email: 'admin@techverse.com',
+            password: adminHash,
+            role: 'admin'
+        });
+        fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+        return initialData;
+    }
+    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+}
 
-            const stmt = db.prepare("INSERT INTO news (title, category, summary, content, image, date, likes, views) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            initialNews.forEach(item => stmt.run(item.title, item.category, item.summary, item.content, item.image, item.date, item.likes, item.views));
-            stmt.finalize();
-        }
-    });
-});
+function saveData(data) {
+    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+}
 
+// Rotalar
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -114,153 +73,149 @@ app.post('/api/auth/register', async (req, res) => {
     const { username, email, password } = req.body;
     if (!username || !email || !password) return res.status(400).json({ error: "Tüm alanları doldurun." });
 
-    try {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        db.run("INSERT INTO users (username, email, password) VALUES (?, ?, ?)", [username, email, hashedPassword], function(err) {
-            if (err) {
-                if (err.message.includes('UNIQUE')) return res.status(400).json({ error: "Kullanıcı adı veya e-posta zaten kullanımda." });
-                return res.status(500).json({ error: err.message });
-            }
-            res.json({ message: "Kayıt başarılı! Giriş yapabilirsiniz." });
-        });
-    } catch (e) {
-        res.status(500).json({ error: "Sunucu hatası" });
+    const db = readData();
+    if (db.users.find(u => u.email === email || u.username === username)) {
+        return res.status(400).json({ error: "Kullanıcı adı veya e-posta zaten kullanımda." });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = { id: Date.now(), username, email, password: hashedPassword, role: 'user' };
+    db.users.push(newUser);
+    saveData(db);
+
+    res.json({ message: "Kayıt başarılı! Giriş yapabilirsiniz." });
 });
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: "E-posta ve şifre gereklidir." });
 
-    db.get("SELECT * FROM users WHERE email = ?", [email], async (err, user) => {
-        if (err || !user) return res.status(400).json({ error: "Kullanıcı bulunamadı veya şifre hatalı." });
+    const db = readData();
+    const user = db.users.find(u => u.email === email);
+    if (!user) return res.status(400).json({ error: "Kullanıcı bulunamadı veya şifre hatalı." });
 
-        const validPassword = await bcrypt.compare(password, user.password);
-        if (!validPassword) return res.status(400).json({ error: "Kullanıcı bulunamadı veya şifre hatalı." });
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) return res.status(400).json({ error: "Kullanıcı bulunamadı veya şifre hatalı." });
 
-        const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
-        res.json({ message: "Giriş başarılı", token, username: user.username, role: user.role });
-    });
+    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ message: "Giriş başarılı", token, username: user.username, role: user.role });
 });
 
 app.get('/api/admin/stats', (req, res) => {
-    db.get("SELECT COUNT(*) as totalNews FROM news", [], (err, newsRow) => {
-        db.get("SELECT COUNT(*) as totalUsers FROM users", [], (err, userRow) => {
-            db.get("SELECT COUNT(*) as totalComments FROM comments", [], (err, commentRow) => {
-                db.get("SELECT SUM(views) as totalViews FROM news", [], (err, viewsRow) => {
-                    res.json({
-                        totalNews: newsRow ? newsRow.totalNews : 0,
-                        totalUsers: userRow ? userRow.totalUsers : 0,
-                        totalComments: commentRow ? commentRow.totalComments : 0,
-                        totalViews: viewsRow ? viewsRow.totalViews : 0
-                    });
-                });
-            });
-        });
+    const db = readData();
+    const totalViews = db.news.reduce((acc, item) => acc + (item.views || 0), 0);
+    res.json({
+        totalNews: db.news.length,
+        totalUsers: db.users.length,
+        totalComments: db.comments.length,
+        totalViews
     });
 });
 
 app.get('/api/news', (req, res) => {
     const { category, search } = req.query;
-    let sql = "SELECT * FROM news";
-    let params = [];
+    const db = readData();
+    let newsList = db.news;
 
     if (category && category !== 'Tümü') {
-        sql += " WHERE category = ?";
-        params.push(category);
+        newsList = newsList.filter(n => n.category === category);
     } else if (search) {
-        sql += " WHERE title LIKE ? OR summary LIKE ?";
-        params.push(`%${search}%`, `%${search}%`);
+        newsList = newsList.filter(n => n.title.toLowerCase().includes(search.toLowerCase()) || n.summary.toLowerCase().includes(search.toLowerCase()));
     }
 
-    sql += " ORDER BY id DESC";
-    db.all(sql, params, (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    res.json(newsList.reverse());
 });
 
 app.get('/api/news/trending', (req, res) => {
-    db.all("SELECT * FROM news ORDER BY views DESC LIMIT 4", [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    const db = readData();
+    const sorted = [...db.news].sort((a, b) => (b.views || 0) - (a.views || 0));
+    res.json(sorted.slice(0, 4));
 });
 
 app.get('/api/news/:id', (req, res) => {
-    const id = req.params.id;
-    db.run("UPDATE news SET views = views + 1 WHERE id = ?", [id]);
+    const id = parseInt(req.params.id);
+    const db = readData();
+    const item = db.news.find(n => n.id === id);
+    if (!item) return res.status(404).json({ error: "Haber bulunamadı." });
 
-    db.get("SELECT * FROM news WHERE id = ?", [id], (err, news) => {
-        if (err || !news) return res.status(404).json({ error: "Haber bulunamadı." });
+    item.views = (item.views || 0) + 1;
+    saveData(db);
 
-        db.all("SELECT * FROM comments WHERE news_id = ? ORDER BY id DESC", [id], (err, comments) => {
-            res.json({ news, comments: comments || [] });
-        });
-    });
+    const newsComments = db.comments.filter(c => c.news_id === id);
+    res.json({ news: item, comments: newsComments.reverse() });
 });
 
 app.delete('/api/news/:id', (req, res) => {
-    const id = req.params.id;
-    db.run("DELETE FROM news WHERE id = ?", [id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: "Haber silindi." });
-    });
+    const id = parseInt(req.params.id);
+    const db = readData();
+    db.news = db.news.filter(n => n.id !== id);
+    saveData(db);
+    res.json({ message: "Haber silindi." });
 });
 
 app.post('/api/news/:id/like', (req, res) => {
-    const id = req.params.id;
-    db.run("UPDATE news SET likes = likes + 1 WHERE id = ?", [id], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: "Beğenildi" });
-    });
+    const id = parseInt(req.params.id);
+    const db = readData();
+    const item = db.news.find(n => n.id === id);
+    if (item) {
+        item.likes = (item.likes || 0) + 1;
+        saveData(db);
+    }
+    res.json({ message: "Beğenildi" });
 });
 
 app.post('/api/bookmarks', (req, res) => {
     const { username, newsId } = req.body;
-    db.run("INSERT INTO bookmarks (username, news_id) VALUES (?, ?)", [username, newsId], function(err) {
-        if (err) return res.status(400).json({ error: "Zaten kaydedilmiş." });
-        res.json({ message: "Kaydedildi" });
-    });
+    const db = readData();
+    const exists = db.bookmarks.find(b => b.username === username && b.news_id === parseInt(newsId));
+    if (exists) return res.status(400).json({ error: "Zaten kaydedilmiş." });
+
+    db.bookmarks.push({ username, news_id: parseInt(newsId) });
+    saveData(db);
+    res.json({ message: "Kaydedildi" });
 });
 
 app.get('/api/bookmarks/:username', (req, res) => {
     const username = req.params.username;
-    const sql = `
-        SELECT news.* FROM news 
-        JOIN bookmarks ON news.id = bookmarks.news_id 
-        WHERE bookmarks.username = ?
-    `;
-    db.all(sql, [username], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+    const db = readData();
+    const userBookmarks = db.bookmarks.filter(b => b.username === username).map(b => b.news_id);
+    const savedNews = db.news.filter(n => userBookmarks.includes(n.id));
+    res.json(savedNews);
 });
 
 app.post('/api/news/:id/comments', (req, res) => {
-    const newsId = req.params.id;
+    const newsId = parseInt(req.params.id);
     const { username, comment } = req.body;
     if (!comment || !username) return res.status(400).json({ error: "Yorum içeriği boş olamaz." });
 
-    db.run("INSERT INTO comments (news_id, username, comment) VALUES (?, ?, ?)", [newsId, username, comment], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: "Yorum eklendi", commentId: this.lastID });
-    });
+    const db = readData();
+    db.comments.push({ id: Date.now(), news_id: newsId, username, comment, date: new Date().toISOString() });
+    saveData(db);
+    res.json({ message: "Yorum eklendi" });
 });
 
 app.post('/api/news', (req, res) => {
     const { title, category, summary, content, image } = req.body;
     if (!title || !category || !summary || !content) return res.status(400).json({ error: "Gerekli alanları doldurun." });
 
+    const db = readData();
     const today = new Date();
     const dateStr = `${today.getDate()} Ekim ${today.getFullYear()}`;
-    const imgUrl = image || "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800";
+    const newNews = {
+        id: Date.now(),
+        title,
+        category,
+        summary,
+        content,
+        image: image || "https://images.unsplash.com/photo-1518770660439-4636190af475?w=800",
+        date: dateStr,
+        views: 0,
+        likes: 0
+    };
 
-    db.run("INSERT INTO news (title, category, summary, content, image, date) VALUES (?, ?, ?, ?, ?, ?)", 
-        [title, category, summary, content, imgUrl, dateStr], function (err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: "Haber eklendi", newsId: this.lastID });
-    });
+    db.news.push(newNews);
+    saveData(db);
+    res.json({ message: "Haber eklendi", newsId: newNews.id });
 });
 
 app.listen(PORT, () => {
