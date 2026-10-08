@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TechVerse | SaaS Portal & CMS</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div class="bg-glow glow-1"></div>
+    <div class="bg-glow glow-2"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="container navbar">
+            <a href="#" class="logo"><i class="fa-solid fa-bolt-lightning"></i> TECH<span>VERSE</span></a>
+            
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="Donanım, Yapay Zeka ara...">
+            </div>
+
+            <nav class="nav-container">
+                <ul class="nav-links">
+                    <li><a href="#" class="nav-btn active" data-category="Tümü">Ana Sayfa</a></li>
+                    <li><a href="#" class="nav-btn" data-category="Donanım"><i class="fa-solid fa-microchip"></i> Donanım</a></li>
+                    <li><a href="#" class="nav-btn" data-category="Yapay Zeka"><i class="fa-solid fa-brain"></i> Yapay Zeka</a></li>
+                    <li><a href="#" class="nav-btn" data-category="Yazılım">Yazılım</a></li>
+                </ul>
+            </nav>
+
+            <div class="auth-actions">
+                <button id="admin-panel-btn" class="btn-admin" style="display: none;"><i class="fa-solid fa-chart-pie"></i> Admin Paneli</button>
+                <button id="add-news-btn" class="btn-primary" style="display: none;"><i class="fa-solid fa-plus"></i> Haber Ekle</button>
+                
+                <div id="logged-out-view">
+                    <button id="open-login-btn" class="btn-outline"><i class="fa-solid fa-right-to-bracket"></i> Giriş Yap</button>
+                    <button id="open-register-btn" class="btn-glow">Kayıt Ol</button>
+                </div>
+
+                <div id="logged-in-view" style="display: none;">
+                    <div class="user-pill">
+                        <div class="user-avatar" id="user-avatar-btn"><i class="fa-solid fa-user"></i></div>
+                        <span id="user-name">Kullanıcı</span>
+                        <div class="divider"></div>
+                        <button id="bookmarks-btn" class="btn-icon" title="Kaydedilenler"><i class="fa-solid fa-bookmark"></i></button>
+                        <button id="logout-btn" class="btn-logout-icon" title="Çıkış Yap"><i class="fa-solid fa-arrow-right-from-bracket"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="hero-banner">
+                <div class="hero-overlay"></div>
+                <div class="hero-text">
+                    <span class="tag-glow"><i class="fa-solid fa-fire"></i> Öne Çıkan Donanım</span>
+                    <h1>NVIDIA RTX 5090 Blackwell Mimarisi ve AI Performansı</h1>
+                    <p>32GB GDDR7 belleği ve yenilenen DLSS 4 mimarisiyle geleceğin donanımı tanıtıldı.</p>
+                    <a href="#main" class="btn-glow">İncele &rarr;</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Filters -->
+    <div class="container filters-bar">
+        <button class="filter-chip active" data-category="Tümü">Tüm Akış</button>
+        <button class="filter-chip" data-category="Donanım"><i class="fa-solid fa-memory"></i> Donanım</button>
+        <button class="filter-chip" data-category="Yapay Zeka"><i class="fa-solid fa-robot"></i> Yapay Zeka</button>
+        <button class="filter-chip" data-category="Yazılım"><i class="fa-solid fa-code"></i> Yazılım</button>
+    </div>
+
+    <!-- Main Content -->
+    <main class="container portal-layout" id="main">
+        <section class="main-news-col">
+            <h2 class="section-title" id="section-heading">Gündemdeki İçerikler</h2>
+            <div class="news-grid" id="news-grid">
+                <p class="loading">Akış yükleniyor...</p>
+            </div>
+        </section>
+
+        <aside class="sidebar-col">
+            <div class="sidebar-card">
+                <h3 class="sidebar-title"><i class="fa-solid fa-chart-line"></i> Trend Okunanlar</h3>
+                <div class="trending-list" id="trending-list"></div>
+            </div>
+
+            <div class="sidebar-card newsletter-card">
+                <i class="fa-solid fa-paper-plane newsletter-icon"></i>
+                <h3>Günlük Teknoloji Bülteni</h3>
+                <p>Günün öne çıkan haberleri e-postana gelsin.</p>
+                <input type="email" id="newsletter-email" placeholder="E-posta adresiniz..." class="newsletter-input">
+                <button class="btn-glow full" id="newsletter-btn">Abone Ol</button>
+            </div>
+        </aside>
+    </main>
+
+    <!-- MODAL: ADMIN DASHBOARD -->
+    <div id="admin-modal" class="modal">
+        <div class="modal-card large">
+            <span class="close-btn">&times;</span>
+            <h2><i class="fa-solid fa-gauge-high"></i> Yönetim & İstatistik Paneli</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <i class="fa-solid fa-newspaper"></i>
+                    <div><h3 id="stat-news">0</h3><span>Toplam Haber</span></div>
+                </div>
+                <div class="stat-box">
+                    <i class="fa-solid fa-users"></i>
+                    <div><h3 id="stat-users">0</h3><span>Kullanıcılar</span></div>
+                </div>
+                <div class="stat-box">
+                    <i class="fa-solid fa-comments"></i>
+                    <div><h3 id="stat-comments">0</h3><span>Yorumlar</span></div>
+                </div>
+                <div class="stat-box">
+                    <i class="fa-solid fa-eye"></i>
+                    <div><h3 id="stat-views">0</h3><span>Okunma</span></div>
+                </div>
+            </div>
+            <p style="color:#9ca3af; font-size:0.85rem; margin-top:20px;">* Yönetici hesabı ile giriş yaptınız (`admin@techverse.com` / `admin123`)</p>
+        </div>
+    </div>
+
+    <!-- MODAL: HABER DETAY & SOSYAL PAYLAŞIM -->
+    <div id="news-modal" class="modal">
+        <div class="modal-card large">
+            <span class="close-btn">&times;</span>
+            <div id="news-detail-content"></div>
+            
+            <div class="share-box">
+                <span>Sosyal Medyada Paylaş:</span>
+                <button class="share-btn twitter" id="share-twitter"><i class="fa-brands fa-x-twitter"></i> X (Twitter)</button>
+                <button class="share-btn whatsapp" id="share-whatsapp"><i class="fa-brands fa-whatsapp"></i> WhatsApp</button>
+            </div>
+
+            <div class="comments-section">
+                <h3><i class="fa-solid fa-comments"></i> Yorumlar ve Tartışma</h3>
+                <div id="comments-list"></div>
+
+                <div id="add-comment-box" style="margin-top: 20px;">
+                    <textarea id="comment-text" rows="3" placeholder="Düşüncelerini paylaş..."></textarea>
+                    <button id="send-comment-btn" class="btn-glow" style="margin-top: 10px;">Yorum Gönder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: AUTH -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-card">
+            <span class="close-btn">&times;</span>
+            <div class="modal-tabs">
+                <button id="tab-login" class="tab-btn active">Giriş Yap</button>
+                <button id="tab-register" class="tab-btn">Kayıt Ol</button>
+            </div>
+
+            <form id="login-form" class="auth-form">
+                <div class="input-group"><label>E-Posta</label><input type="email" id="login-email" required placeholder="ornek@techverse.com"></div>
+                <div class="input-group"><label>Şifre</label><input type="password" id="login-password" required placeholder="••••••••"></div>
+                <button type="submit" class="btn-glow full">Giriş Yap</button>
+            </form>
+
+            <form id="register-form" class="auth-form" style="display: none;">
+                <div class="input-group"><label>Kullanıcı Adı</label><input type="text" id="reg-username" required placeholder="kullanici_adi"></div>
+                <div class="input-group"><label>E-Posta</label><input type="email" id="reg-email" required placeholder="ornek@techverse.com"></div>
+                <div class="input-group"><label>Şifre</label><input type="password" id="reg-password" required placeholder="••••••••"></div>
+                <button type="submit" class="btn-glow full">Hesap Oluştur</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: HABER EKLE -->
+    <div id="add-news-modal" class="modal">
+        <div class="modal-card">
+            <span class="close-btn">&times;</span>
+            <h2>Yeni Haber Yayınla</h2>
+            <form id="add-news-form">
+                <div class="input-group"><label>Başlık</label><input type="text" id="news-title" required></div>
+                <div class="input-group">
+                    <label>Kategori</label>
+                    <select id="news-category">
+                        <option value="Donanım">Donanım</option>
+                        <option value="Yapay Zeka">Yapay Zeka</option>
+                        <option value="Yazılım">Yazılım</option>
+                    </select>
+                </div>
+                <div class="input-group"><label>Görsel URL</label><input type="url" id="news-image"></div>
+                <div class="input-group"><label>Özet</label><input type="text" id="news-summary" required></div>
+                <div class="input-group"><label>Detaylı İçerik</label><textarea id="news-content" rows="4" required></textarea></div>
+                <button type="submit" class="btn-glow full">Yayınla</button>
+            </form>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container footer-box">
+            <p>&copy; 2026 TechVerse Media Group. Satışa Hazır Full-Stack SaaS CMS Mimarisi.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
